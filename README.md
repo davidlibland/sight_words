@@ -12,13 +12,15 @@ Using pip, run `pip install .` from the root folder.
 ### Setup:
 Create a new datafile to track results by calling:
 
-```sight_words new_data_file <student_name>.yml <grade>```
+```word_practice new_data_file <student_name>.yml <grade>```
 
 ### Practice/Testing:
 
 To choose a new practice word run: 
 
-```sight_words test <student_name>.yml```
+```word_practice read <student_name>.yml```
+or
+```word_practice spell <student_name>.yml```
 
 
 

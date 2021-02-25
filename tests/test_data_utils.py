@@ -38,11 +38,12 @@ def test_build_new_dataset(max_grade, past_grade_success_incr):
     )
     for datum in dataset.values():
         assert datum.grade <= max_grade
-        assert datum.failures == data_utils.PRIOR_FAILURES
-        assert (
-            datum.successes
-            == data_utils.PRIOR_SUCCESSES
-            + past_grade_success_incr * (max_grade - datum.grade)
+        assert len(datum.log) == 1
+        assert datum.log[0].failure == data_utils.PRIOR_FAILURES
+        assert datum.log[
+            0
+        ].success == data_utils.PRIOR_SUCCESSES + past_grade_success_incr * (
+            max_grade - datum.grade
         )
     grades = {d.grade for d in dataset.values()}
     assert min(grades) == 0

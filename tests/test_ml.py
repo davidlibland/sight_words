@@ -1,17 +1,27 @@
 """Tests for ml"""
 import collections
 
-from sight_words import data_rep, data_utils, ml
+from sight_words import data_rep, ml
 
 
 def test_sampling():
     """Test Dataset"""
     dataset = {
-        "a": data_rep.SightWordDatum(grade=0, successes=3, failures=0),
-        "b": data_rep.SightWordDatum(grade=1, successes=3, failures=10000),
-        "d": data_rep.SightWordDatum(grade=1, successes=3, failures=20_000),
-        "c": data_rep.SightWordDatum(grade=2, successes=3, failures=5),
-        "x": data_rep.SightWordDatum(grade=2, successes=3, failures=100),
+        "a": data_rep.SightWordDatum(
+            grade=0, log=[data_rep.Event(success=3, failure=0)]
+        ),
+        "b": data_rep.SightWordDatum(
+            grade=1, log=[data_rep.Event(success=3, failure=10000)]
+        ),
+        "d": data_rep.SightWordDatum(
+            grade=1, log=[data_rep.Event(success=3, failure=20_000)]
+        ),
+        "c": data_rep.SightWordDatum(
+            grade=2, log=[data_rep.Event(success=3, failure=5)]
+        ),
+        "x": data_rep.SightWordDatum(
+            grade=2, log=[data_rep.Event(success=3, failure=100)]
+        ),
     }
     chosen_grades = collections.Counter()
     for _ in range(100):
