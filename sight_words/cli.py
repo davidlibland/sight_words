@@ -5,7 +5,7 @@ import pathlib
 import click
 import pyttsx3
 
-from sight_words import data_utils, ml, reports, data_rep
+from sight_words import data_utils, ml, reports, data_rep, io
 
 
 @click.group()
@@ -85,9 +85,9 @@ def read(data_file, inv_temp, inv_grade_temp):
 def spell(data_file, inv_temp, inv_grade_temp, spoken):
     """Tests spelling"""
     if spoken:
-        engine = pyttsx3.init()
+        engine = io.OutputEngine(output_type=io.OutputType.SPOKEN)
     else:
-        engine = None
+        engine = io.OutputEngine(output_type=io.OutputType.SILENT)
     data_file = pathlib.Path(data_file)
     dataset = data_utils.load_dataset(data_file)
     texts = [data_utils.get_indexed_sentences(text) for text in dataset.text]
@@ -106,11 +106,7 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
         phrase = f"Please spell {word}"
         if sentence:
             phrase += f", as in: {sentence}. {word}."
-        if engine:
-            engine.say(phrase)
-            engine.runAndWait()
-        else:
-            print(phrase)
+        engine.output(phrase)
 
         attempt = input("spelling (or \quit): ")
         if attempt == "\quit":
@@ -120,11 +116,13 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
             if attempt.lower().strip() == word.lower().strip():
                 success = 1
                 failure = 0
-                click.secho("Correct!")
+                engine.output("Correct!")
             else:
                 success = 0
                 failure = 1
                 click.secho(f"{word} is the correct spelling.")
+                if spoken:
+                    engine.output(f"Sorry! The correct spelling is: {', '.join(word)}.")
             dataset = data_utils.update_dataset(
                 dataset, spelling_word=word, successes=success, failures=failure
             )
