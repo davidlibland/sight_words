@@ -63,7 +63,7 @@ class SightWordDatum:
 class DataSet:
     spelling_words: Dict[str, SightWordDatum]
     reading_words: Dict[str, SightWordDatum]
-    text: str = "p_and_p"
+    text: List[str] = dataclasses.field(default_factory=lambda: ["p_and_p"])
 
     @staticmethod
     def yaml_representer(dumper, data):

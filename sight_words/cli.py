@@ -35,7 +35,7 @@ def new_data_file(file_path, grade, past_grade_success_incr, text_name):
 @main.command("parse_new_text")
 @click.argument("text", type=click.Path())
 @click.argument("name", type=str)
-@click.argument("--max_length", type=int, default=100)
+@click.option("--max_length", type=int, default=100)
 def parse_new_text(text, name, max_length):
     """Parses a new text file for sentences"""
     click.secho(f"Parsing the text {text}.")
@@ -81,27 +81,38 @@ def read(data_file, inv_temp, inv_grade_temp):
 @click.argument("data_file", type=click.Path())
 @click.option("--inv_temp", type=float, default=1)
 @click.option("--inv_grade_temp", type=float, default=1)
-def spell(data_file, inv_temp, inv_grade_temp):
+@click.option("--spoken/--silent", type=bool, default=True)
+def spell(data_file, inv_temp, inv_grade_temp, spoken):
     """Tests spelling"""
-    engine = pyttsx3.init()
+    if spoken:
+        engine = pyttsx3.init()
+    else:
+        engine = None
     data_file = pathlib.Path(data_file)
     dataset = data_utils.load_dataset(data_file)
-    sentences = data_utils.get_indexed_sentences(dataset.text)
+    texts = [data_utils.get_indexed_sentences(text) for text in dataset.text]
     attempt = None
 
     while attempt != "\quit":
         word = ml.choose_word(
             dataset.spelling_words, inv_temp=inv_temp, inv_grade_temp=inv_grade_temp
         )
-        sentence = sentences.get_sentence(word)
+        sentence = None
+        for text in texts:
+            sentence = text.get_sentence(word)
+            if sentence:
+                break
 
         phrase = f"Please spell {word}"
         if sentence:
             phrase += f", as in: {sentence}. {word}."
-        engine.say(phrase)
-        engine.runAndWait()
+        if engine:
+            engine.say(phrase)
+            engine.runAndWait()
+        else:
+            print(phrase)
 
-        attempt = input("spelling: ")
+        attempt = input("spelling (or \quit): ")
         if attempt == "\quit":
             click.secho("Quitting...")
             pass
