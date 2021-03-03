@@ -90,18 +90,14 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
         engine = io.OutputEngine(output_type=io.OutputType.SILENT)
     data_file = pathlib.Path(data_file)
     dataset = data_utils.load_dataset(data_file)
-    texts = [data_utils.get_indexed_sentences(text) for text in dataset.text]
+    text = data_utils.get_indexed_sentences(*dataset.text)
     attempt = None
 
     while attempt != "\quit":
         word = ml.choose_word(
             dataset.spelling_words, inv_temp=inv_temp, inv_grade_temp=inv_grade_temp
         )
-        sentence = None
-        for text in texts:
-            sentence = text.get_sentence(word)
-            if sentence:
-                break
+        sentence = text.get_sentence(word)
 
         phrase = f"Please spell {word}"
         if sentence:
@@ -111,7 +107,6 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
         attempt = input("spelling (or \quit): ")
         if attempt == "\quit":
             click.secho("Quitting...")
-            pass
         else:
             if attempt.lower().strip() == word.lower().strip():
                 success = 1

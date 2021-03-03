@@ -1,4 +1,5 @@
 """Utils for working with data files"""
+import abc
 import collections
 import dataclasses
 import random
@@ -86,6 +87,43 @@ def update_dataset(
         return dataclasses.replace(dataset, **{attr: new_words})
 
 
+class AbstractSentenceIndex(abc.ABC):
+    """An Abstract sentence index"""
+
+    @abc.abstractmethod
+    def get_sentence(self, word) -> str:
+        """Returns a sentence using that word"""
+        raise NotImplementedError
+
+
+@dataclasses.dataclass()
+class SentenceIndex(AbstractSentenceIndex):
+    sentences: List[str]
+    index: Dict[str, List[int]]
+
+    def get_sentence(self, word) -> str:
+        """Returns a sentence using that word"""
+        ixs = self.index.get(word.lower(), [])
+        if ixs:
+            ix = random.choice(ixs)
+            return self.sentences[ix]
+        return ""
+
+
+@dataclasses.dataclass()
+class MergedIndex(AbstractSentenceIndex):
+    components: List[AbstractSentenceIndex]
+
+    def get_sentence(self, word) -> str:
+        """Returns a sentence using that word"""
+        sentence = ""
+        for index in self.components:
+            sentence = index.get_sentence(word)
+            if sentence:
+                break
+        return sentence
+
+
 def build_new_sentence_file(input_file, output_name, max_length=100):
     """Process a text file into a list of sentences."""
     with open(input_file) as f:
@@ -124,30 +162,21 @@ def _get_lookup_dict(sentences: List[str]) -> Dict[str, List[int]]:
     return {w: l for w, l in lookup_dict.items()}
 
 
-@dataclasses.dataclass()
-class SentenceIndex:
-    sentences: List[str]
-    index: Dict[str, int]
-
-    def get_sentence(self, word) -> str:
-        """Returns a sentence using that word"""
-        ixs = self.index.get(word.lower(), [])
-        if ixs:
-            ix = random.choice(ixs)
-            return self.sentences[ix]
-        return ""
-
-
-def get_indexed_sentences(name):
+def get_indexed_sentences(*names: str):
     """Loads the sight words from the raw data"""
-    sentences_path = pkg_resources.resource_filename("sight_words", f"data/{name}.yml")
-    full_path = pathlib.Path(sentences_path)
-    with full_path.open("r") as f:
-        sentences = yaml.load(f, Loader=yaml.SafeLoader)
-    index_path = pkg_resources.resource_filename(
-        "sight_words", f"data/{name}_index.yml"
-    )
-    full_path = pathlib.Path(index_path)
-    with full_path.open("r") as f:
-        index = yaml.load(f, Loader=yaml.SafeLoader)
-    return SentenceIndex(sentences=sentences, index=index)
+    components = []
+    for name in names:
+        sentences_path = pkg_resources.resource_filename(
+            "sight_words", f"data/{name}.yml"
+        )
+        full_path = pathlib.Path(sentences_path)
+        with full_path.open("r") as f:
+            sentences = yaml.load(f, Loader=yaml.SafeLoader)
+        index_path = pkg_resources.resource_filename(
+            "sight_words", f"data/{name}_index.yml"
+        )
+        full_path = pathlib.Path(index_path)
+        with full_path.open("r") as f:
+            index = yaml.load(f, Loader=yaml.SafeLoader)
+        components.append(SentenceIndex(sentences=sentences, index=index))
+    return MergedIndex(components=components)
