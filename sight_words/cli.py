@@ -2,10 +2,12 @@
 import itertools
 import pathlib
 
+import blessed
 import click
 import pyttsx3
 
-from sight_words import data_utils, ml, reports, data_rep, io
+from sight_words.games import stacking, tetris
+from sight_words import data_utils, ml, reports, data_rep, io, game
 
 
 @click.group()
@@ -93,34 +95,52 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
     text = data_utils.get_indexed_sentences(*dataset.text)
     attempt = None
 
-    while attempt != "\quit":
-        word = ml.choose_word(
-            dataset.spelling_words, inv_temp=inv_temp, inv_grade_temp=inv_grade_temp
-        )
-        sentence = text.get_sentence(word)
+    game_state = tetris.Tetris()
+    ui = blessed.Terminal()
 
-        phrase = f"Please spell {word}"
-        if sentence:
-            phrase += f", as in: {sentence}. {word}."
-        engine.output(phrase)
-
-        attempt = input("spelling (or \quit): ")
-        if attempt == "\quit":
-            click.secho("Quitting...")
-        else:
-            if attempt.lower().strip() == word.lower().strip():
-                success = 1
-                failure = 0
-                engine.output("Correct!")
-            else:
-                success = 0
-                failure = 1
-                click.secho(f"{word} is the correct spelling.")
-                if spoken:
-                    engine.output(f"Sorry! The correct spelling is: {', '.join(word)}.")
-            dataset = data_utils.update_dataset(
-                dataset, spelling_word=word, successes=success, failures=failure
+    quit = False
+    while not quit:
+        hook = game_state.play(ui)
+        if not isinstance(hook, game.GameOver):
+            word = ml.choose_word(
+                dataset.spelling_words, inv_temp=inv_temp, inv_grade_temp=inv_grade_temp
             )
+            sentence = text.get_sentence(word)
+
+            phrase = f"Please spell {word}"
+            if sentence:
+                phrase += f", as in: {sentence}. {word}."
+            engine.output(phrase)
+
+            attempt = input("spelling (or \quit): ")
+            if attempt == "\quit":
+                click.secho("Quitting...")
+                quit = True
+            else:
+                if attempt.lower().strip() == word.lower().strip():
+                    success = 1
+                    failure = 0
+                    engine.output("Correct!")
+                    event = game.SightWordTestEvent(
+                        word, 1, game.TestQuestionResult.PASS
+                    )
+                else:
+                    success = 0
+                    failure = 1
+                    click.secho(f"{word} is the correct spelling.")
+                    if spoken:
+                        engine.output(
+                            f"Sorry! The correct spelling is: {', '.join(word)}."
+                        )
+                    event = game.SightWordTestEvent(
+                        word, 1, game.TestQuestionResult.FAIL
+                    )
+                dataset = data_utils.update_dataset(
+                    dataset, spelling_word=word, successes=success, failures=failure
+                )
+                game_state = hook(event)
+        else:
+            quit = True
         data_utils.save_dataset(data_file, dataset)
 
 
