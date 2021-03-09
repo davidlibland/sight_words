@@ -19,7 +19,7 @@ def main():
 @click.argument("file_path", type=click.Path())
 @click.argument("grade", type=int)
 @click.option("--past_grade_success_incr", type=int, default=1)
-@click.option("--text_name", type=str, default="p_and_p")
+@click.option("--text_name", type=str, multiple=True, default=("p_and_p",))
 def new_data_file(file_path, grade, past_grade_success_incr, text_name):
     """Initializes a datafile for a new student"""
     click.secho(f"Creating new data file for grade {grade}.")
@@ -27,7 +27,7 @@ def new_data_file(file_path, grade, past_grade_success_incr, text_name):
         max_grade=grade, past_grade_success_incr=past_grade_success_incr
     )
     dataset = data_rep.DataSet(
-        spelling_words=words, reading_words=words, text=text_name
+        spelling_words=words, reading_words=words, text=list(text_name)
     )
     click.secho(f"Saving data file at {file_path}.")
     data_utils.save_dataset(pathlib.Path(file_path), dataset)

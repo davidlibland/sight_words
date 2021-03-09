@@ -33,6 +33,16 @@ class Tetris(game.AbstractGame):
 
     def adjust_rows(self, height):
         """Adjusts the state to the correct height."""
+        i = 0
+        while i < len(self.rows):
+            # Check if any rows are full:
+            row = self.rows[i]
+            if not row.word and all(row.blocks_filled):
+                # Delete the row.
+                self.rows.pop(i)
+                self.score += self.width
+            else:
+                i += 1
         if len(self.rows) < height:
             new_rows = [
                 RowData([False] * self.width) for _ in range(height - len(self.rows))
@@ -59,7 +69,7 @@ class Tetris(game.AbstractGame):
                     "█" if filled else " " for filled in row.blocks_filled
                 )
             text += row_txt + ui.move_down()
-        print(text)
+        print(text, end="")
 
     def is_game_over(self) -> bool:
         """Checks if the game is over"""
@@ -67,7 +77,7 @@ class Tetris(game.AbstractGame):
 
     def render_game_over(self, ui):
         """Renders the game over message"""
-        print(ui.home + ui.black_on_bright_cyan + ui.clear)
+        print(ui.home + ui.black_on_bright_cyan + ui.clear, end="")
         msg = "Game Over!"
         print(ui.move_xy(ui.width // 2 - 5, ui.height // 2) + msg)
         msg = f"Score: {self.score}"
@@ -76,7 +86,7 @@ class Tetris(game.AbstractGame):
     def render_piece(self, ui):
         """Renders the piece"""
         with ui.location(self.piece[0], self.piece[1] + TOP_OFFSET - 1):
-            print("█")
+            print("█", end="")
 
     def is_piece_blocked(self):
         """Checks if the piece is blocked"""
@@ -121,7 +131,6 @@ class Tetris(game.AbstractGame):
 
     def play(self, ui: blessed.Terminal) -> Union[game.GameOver, game.ResumeGameHook]:
         """The core game play loop"""
-        self.adjust_rows(ui.height - TOP_OFFSET - BOTTOM_OFFSET)
 
         def resume_hook(event: game.SightWordTestEvent):
             if event.result == game.TestQuestionResult.PASS:
@@ -134,6 +143,7 @@ class Tetris(game.AbstractGame):
 
         with ui.fullscreen(), ui.cbreak(), ui.hidden_cursor():
             while (inp := ui.inkey(timeout=self.inv_speed)) != "q":
+                self.adjust_rows(ui.height - TOP_OFFSET - BOTTOM_OFFSET)
                 if self.is_game_over():
                     self.render_game_over(ui)
                     while not ui.inkey(timeout=0.02):
