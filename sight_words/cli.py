@@ -63,6 +63,7 @@ def read(data_file, inv_temp, inv_grade_temp):
         click.secho("\n")
         capture = False
         while not capture:
+            io.flush_input()
             success_str = input("Successful (y/n/\quit)? ")
             if success_str.lower()[0] == "y":
                 dataset = data_utils.update_dataset(
@@ -93,7 +94,6 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
     data_file = pathlib.Path(data_file)
     dataset = data_utils.load_dataset(data_file)
     text = data_utils.get_indexed_sentences(*dataset.text)
-    attempt = None
 
     game_state = tetris.Tetris()
     ui = blessed.Terminal()
@@ -112,6 +112,7 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
                 phrase += f", as in: {sentence}. {word}."
             engine.output(phrase)
 
+            io.flush_input()
             attempt = input("spelling (or \quit): ")
             if attempt == "\quit":
                 click.secho("Quitting...")
