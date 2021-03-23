@@ -1,11 +1,18 @@
 """An abstraction for a game"""
 from typing import Union
 from typing import Callable
-import dataclasses
+from typing import TYPE_CHECKING
 import enum
 import abc
 
 import blessed
+
+
+if TYPE_CHECKING:
+    # pydantic doesn't play well with type checkers.
+    from dataclasses import dataclass
+else:
+    from pydantic.dataclasses import dataclass
 
 
 class TestQuestionResult(enum.Enum):
@@ -15,7 +22,7 @@ class TestQuestionResult(enum.Enum):
     FAIL = "FAIL"
 
 
-@dataclasses.dataclass
+@dataclass  # pylint: disable=used-before-assignment
 class SightWordTestEvent:
     """
     An event involving spelling or reading. The user can either pass or fail
@@ -32,7 +39,7 @@ class SightWordTestEvent:
 ResumeGameHook = Callable[[SightWordTestEvent], "AbstractGame"]
 
 
-@dataclasses.dataclass
+@dataclass
 class GameOver:
     """
     The end result of playing the game
@@ -42,6 +49,7 @@ class GameOver:
 
 
 class AbstractGame(abc.ABC):
+    """An abstraction for a game"""
     @abc.abstractmethod
     def play(self, ui: blessed.Terminal) -> Union[GameOver, ResumeGameHook]:
         """
