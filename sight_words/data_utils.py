@@ -106,6 +106,7 @@ class AbstractSentenceIndex(abc.ABC):
 @dataclass()  # pylint: disable=used-before-assignment
 class SentenceIndex(AbstractSentenceIndex):
     """An index of sentences"""
+
     sentences: List[str]
     index: Dict[str, List[int]]
 
@@ -121,6 +122,7 @@ class SentenceIndex(AbstractSentenceIndex):
 @dataclasses.dataclass()
 class MergedIndex(AbstractSentenceIndex):
     """An index composed of several subcomponents"""
+
     components: List[AbstractSentenceIndex]
 
     def get_sentence(self, word) -> str:

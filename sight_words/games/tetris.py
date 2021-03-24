@@ -1,4 +1,5 @@
 """A tetris game"""
+import time
 from typing import List
 from typing import Union
 import dataclasses
@@ -53,22 +54,27 @@ class Tetris(game.AbstractGame):
     def render_board(self, ui: blessed.Terminal):
         """Renders the game board"""
         text = ui.home + ui.black_on_bright_cyan + ui.clear
-        text += " " * 2 * self.width + f"Score: {self.score}\n"
+        text += " " * 2 * (self.width + 2) + f"Score: {self.score}\n"
         for row in self.rows:
             assert len(row.blocks_filled) == self.width
             if row.word:
                 missing = self.width - len(row.word)
                 row_txt = (
                     ui.white_on_black
+                    + "▒"
                     + row.word
                     + " " * missing
+                    + "▒"
                     + ui.black_on_bright_cyan
                 )
             else:
-                row_txt = "".join(
-                    "█" if filled else " " for filled in row.blocks_filled
+                row_txt = (
+                    "▒"
+                    + "".join("█" if filled else " " for filled in row.blocks_filled)
+                    + "▒"
                 )
             text += row_txt + ui.move_down()
+        text += "▒" * (self.width + 2)
         print(text, end="")
 
     def is_game_over(self) -> bool:
@@ -83,9 +89,14 @@ class Tetris(game.AbstractGame):
         msg = f"Score: {self.score}"
         print(ui.move_xy((ui.width - len(msg)) // 2, ui.height // 2 + 1) + msg)
 
+    def clear_piece(self, ui):
+        """Renders the piece"""
+        with ui.location(self.piece[0] + 1, self.piece[1] + TOP_OFFSET - 1):
+            print(" ", end="")
+
     def render_piece(self, ui):
         """Renders the piece"""
-        with ui.location(self.piece[0], self.piece[1] + TOP_OFFSET - 1):
+        with ui.location(self.piece[0] + 1, self.piece[1] + TOP_OFFSET - 1):
             print("█", end="")
 
     def is_piece_blocked(self):
@@ -99,6 +110,29 @@ class Tetris(game.AbstractGame):
 
     def reset_piece(self):
         self.piece = (5, 0)
+
+    def drop_piece(self) -> bool:
+        """
+        Drop the piece one unit to the keystroke
+        Returns True if the piece could move
+
+
+        Returns:
+            Whether the piece could move
+        """
+        # Constrain the piece
+        x, y = self.piece
+        self.piece = (x, y)
+
+        if self.is_piece_blocked():
+            self.rows[y].blocks_filled[x] = True
+            return False
+        else:
+            y += 1
+            y = max(0, min(y, len(self.rows) - 1))
+            x = max(0, min(x, self.width - 1))
+            self.piece = (x, y)
+        return True
 
     def move_piece(self, inp) -> bool:
         """
@@ -123,7 +157,6 @@ class Tetris(game.AbstractGame):
                 x -= 1
             if inp.code == 261:
                 x += 1
-            y += 1
             y = max(0, min(y, len(self.rows) - 1))
             x = max(0, min(x, self.width - 1))
             self.piece = (x, y)
@@ -142,16 +175,24 @@ class Tetris(game.AbstractGame):
                 return dataclasses.replace(self, rows=self.rows + [new_row])
 
         with ui.fullscreen(), ui.cbreak(), ui.hidden_cursor():
-            while (inp := ui.inkey(timeout=self.inv_speed)) != "q":
+            while True:
+                stime = time.time()
                 self.adjust_rows(ui.height - TOP_OFFSET - BOTTOM_OFFSET)
                 if self.is_game_over():
                     self.render_game_over(ui)
-                    while not ui.inkey(timeout=0.02):
+                    while not ui.inkey(timeout=2):
                         pass
                     return game.GameOver(score=self.score)
                 self.render_board(ui)
-                self.render_piece(ui)
-                if not self.move_piece(inp):
+                while time.time() - stime < self.inv_speed:
+                    inp = ui.inkey(timeout=0.02)
+                    if inp == "q":
+                        break
+                    self.clear_piece(ui)
+                    self.move_piece(inp)
+                    self.render_piece(ui)
+                if not self.drop_piece():
+                    time.sleep(0.5)
                     self.reset_piece()
                     return resume_hook
 

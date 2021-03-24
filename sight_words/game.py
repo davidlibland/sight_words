@@ -50,6 +50,7 @@ class GameOver:
 
 class AbstractGame(abc.ABC):
     """An abstraction for a game"""
+
     @abc.abstractmethod
     def play(self, ui: blessed.Terminal) -> Union[GameOver, ResumeGameHook]:
         """

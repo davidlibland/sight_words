@@ -23,6 +23,7 @@ EVENT_WINDOW = 10
 @dataclass(frozen=True)  # pylint: disable=used-before-assignment
 class Event:
     """A practice event for a given word."""
+
     success: float
     failure: float
 
@@ -41,6 +42,7 @@ class Event:
 @dataclass(frozen=True)  # pylint: disable=used-before-assignment
 class SightWordDatum:
     """The data associated to a sight word: the grade, and practice events"""
+
     grade: int
     log: List[Event]
 
@@ -76,6 +78,7 @@ class SightWordDatum:
 @dataclass(frozen=True)  # pylint: disable=used-before-assignment
 class DataSet:
     """A dataset representing a child's performance on a list of words"""
+
     spelling_words: Dict[str, SightWordDatum]
     reading_words: Dict[str, SightWordDatum]
     text: List[str] = dataclasses.field(default_factory=lambda: ["p_and_p"])
