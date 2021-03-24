@@ -1,6 +1,8 @@
 """A tetris game"""
+import random
 import time
 from typing import List
+from typing import Tuple
 from typing import Union
 import dataclasses
 
@@ -17,6 +19,122 @@ class RowData:
     word: str = ""
 
 
+@dataclasses.dataclass
+class TetrisPiece:
+    """A tetris piece"""
+
+    squares: List[Tuple[int, int]]
+    center: Tuple[float, float]
+
+    def rotate(self, n_quarter_turns: int) -> "TetrisPiece":
+        """Returns a rotated tetris piece"""
+        n_quarter_turns = n_quarter_turns % 4
+        if n_quarter_turns == 0:
+            # No rotation
+            return self
+        if n_quarter_turns == 2:
+            # Flip the piece
+            def rotate(x, y):
+                x_centered = x - self.center[0]
+                y_centered = y - self.center[1]
+                x_rot_centered = -x_centered
+                y_rot_centered = -y_centered
+                x_rot = x_rot_centered + self.center[0]
+                y_rot = y_rot_centered + self.center[1]
+                return int(2 * x_rot) // 2, int(2 * y_rot) // 2
+
+        elif n_quarter_turns == 1:
+            # Rotate the piece
+            def rotate(x, y):
+                x_centered = x - self.center[0]
+                y_centered = y - self.center[1]
+                x_rot_centered = -y_centered
+                y_rot_centered = x_centered
+                x_rot = x_rot_centered + self.center[0]
+                y_rot = y_rot_centered + self.center[1]
+                return int(2 * x_rot) // 2, int(2 * y_rot) // 2
+
+        elif n_quarter_turns == 3:
+            # Rotate the piece
+            def rotate(x, y):
+                x_centered = x - self.center[0]
+                y_centered = y - self.center[1]
+                x_rot_centered = y_centered
+                y_rot_centered = -x_centered
+                x_rot = x_rot_centered + self.center[0]
+                y_rot = y_rot_centered + self.center[1]
+                return int(2 * x_rot) // 2, int(2 * y_rot) // 2
+
+        else:
+            raise RuntimeError("Invalid rotation number")
+        new_squares = [rotate(x, y) for x, y in self.squares]
+        return dataclasses.replace(self, squares=new_squares)
+
+    def shift(self, x, y):
+        """Shift the piece"""
+        new_squares = [(x + x_, y + y_) for x_, y_ in self.squares]
+        return dataclasses.replace(
+            self, squares=new_squares, center=(self.center[0] + x, self.center[1] + y)
+        )
+
+    @staticmethod
+    def box(x, y):
+        """Get a box"""
+        return TetrisPiece(
+            squares=[(0, 0), (0, 1), (1, 0), (1, 1)], center=(0.5, 0.5)
+        ).shift(x, y)
+
+    @staticmethod
+    def line(x, y):
+        """Get a line"""
+        return TetrisPiece(
+            squares=[(0, 2), (0, 1), (0, 0), (0, -1)], center=(0, 0.5)
+        ).shift(x, y)
+
+    @staticmethod
+    def ell(x, y):
+        """Get a ell"""
+        return TetrisPiece(
+            squares=[(0, 2), (0, 1), (0, 0), (1, 0)], center=(0, 0.5)
+        ).shift(x, y)
+
+    @staticmethod
+    def lle(x, y):
+        """Get a lle"""
+        return TetrisPiece(
+            squares=[(0, 2), (0, 1), (0, 0), (-1, 0)], center=(0, 0.5)
+        ).shift(x, y)
+
+    @staticmethod
+    def zig(x, y):
+        """Get a zig"""
+        return TetrisPiece(
+            squares=[(0, 0), (0, 1), (1, 0), (1, -1)], center=(0.5, 0)
+        ).shift(x, y)
+
+    @staticmethod
+    def zag(x, y):
+        """Get a zag"""
+        return TetrisPiece(
+            squares=[(0, 0), (0, -1), (1, 0), (1, 1)], center=(0.5, 0)
+        ).shift(x, y)
+
+    @staticmethod
+    def random_piece(x, y) -> "TetrisPiece":
+        """Get a random piece"""
+        method = random.choice(
+            [
+                TetrisPiece.box,
+                TetrisPiece.line,
+                TetrisPiece.ell,
+                TetrisPiece.lle,
+                TetrisPiece.zag,
+                TetrisPiece.zig,
+            ]
+        )
+        return method(x, y)
+
+
 # TETRIS_BG_COLOR = blessed.Terminal.black_on_bright_cyan
 TOP_OFFSET = 2
 BOTTOM_OFFSET = 2
@@ -29,7 +147,9 @@ class Tetris(game.AbstractGame):
     width: int = 10
     rows: List[RowData] = dataclasses.field(default_factory=list)
     score: int = 0
-    piece = (5, 0)
+    piece: TetrisPiece = dataclasses.field(
+        default_factory=lambda: TetrisPiece.random_piece(5, 0)
+    )
     inv_speed: float = 0.5
 
     def adjust_rows(self, height):
@@ -91,25 +211,34 @@ class Tetris(game.AbstractGame):
 
     def clear_piece(self, ui):
         """Renders the piece"""
-        with ui.location(self.piece[0] + 1, self.piece[1] + TOP_OFFSET - 1):
-            print(" ", end="")
+        for x, y in self.piece.squares:
+            with ui.location(x + 1, y + TOP_OFFSET - 1):
+                print(" ", end="")
 
     def render_piece(self, ui):
         """Renders the piece"""
-        with ui.location(self.piece[0] + 1, self.piece[1] + TOP_OFFSET - 1):
-            print("█", end="")
+        for x, y in self.piece.squares:
+            with ui.location(x + 1, y + TOP_OFFSET - 1):
+                print("█", end="")
 
-    def is_piece_blocked(self):
+    def is_piece_blocked(self, piece):
         """Checks if the piece is blocked"""
-        x, y = self.piece
-        if y >= len(self.rows) - 1:
-            return True
-        if self.rows[y + 1].blocks_filled[x]:
-            return True
+        for x, y in piece.squares:
+            if y >= len(self.rows):
+                return True
+            if x > self.width - 1:
+                return True
+            if x < 0:
+                return True
+            if y < 0:
+                continue
+            if self.rows[y].blocks_filled[x]:
+                return True
         return False
 
     def reset_piece(self):
-        self.piece = (5, 0)
+        """Resets to a new piece"""
+        self.piece = TetrisPiece.random_piece(5, 0)
 
     def drop_piece(self) -> bool:
         """
@@ -120,18 +249,18 @@ class Tetris(game.AbstractGame):
         Returns:
             Whether the piece could move
         """
-        # Constrain the piece
-        x, y = self.piece
-        self.piece = (x, y)
-
-        if self.is_piece_blocked():
-            self.rows[y].blocks_filled[x] = True
+        if self.is_piece_blocked(self.piece.shift(0, 1)):
+            for x, y in self.piece.squares:
+                self.rows[y].blocks_filled[x] = True
             return False
         else:
-            y += 1
-            y = max(0, min(y, len(self.rows) - 1))
-            x = max(0, min(x, self.width - 1))
-            self.piece = (x, y)
+            # y += 1
+            # y = max(0, min(y, len(self.rows) - 1))
+            # x = max(0, min(x, self.width - 1))
+            # self.piece = (x, y)
+            new_piece = self.piece.shift(0, 1)
+            if not self.is_piece_blocked(new_piece):
+                self.piece = new_piece
         return True
 
     def move_piece(self, inp) -> bool:
@@ -145,22 +274,27 @@ class Tetris(game.AbstractGame):
         Returns:
             Whether the piece could move
         """
-        # Constrain the piece
-        x, y = self.piece
-        self.piece = (x, y)
 
-        if self.is_piece_blocked():
-            self.rows[y].blocks_filled[x] = True
-            return False
-        else:
-            if inp.code == 260:
-                x -= 1
-            if inp.code == 261:
-                x += 1
-            y = max(0, min(y, len(self.rows) - 1))
-            x = max(0, min(x, self.width - 1))
-            self.piece = (x, y)
-        return True
+        if inp.code == 260:
+            new_piece = self.piece.shift(-1, 0)
+            if not self.is_piece_blocked(new_piece):
+                self.piece = new_piece
+        elif inp.code == 261:
+            new_piece = self.piece.shift(1, 0)
+            if not self.is_piece_blocked(new_piece):
+                self.piece = new_piece
+        elif inp.code == 258:
+            new_piece = self.piece.rotate(-1)
+            if not self.is_piece_blocked(new_piece):
+                self.piece = new_piece
+        elif inp.code == 259:
+            new_piece = self.piece.rotate(1)
+            if not self.is_piece_blocked(new_piece):
+                self.piece = new_piece
+        elif inp == " ":
+            new_piece = self.piece.shift(0, 1)
+            if not self.is_piece_blocked(new_piece):
+                self.piece = new_piece
 
     def play(self, ui: blessed.Terminal) -> Union[game.GameOver, game.ResumeGameHook]:
         """The core game play loop"""
@@ -187,7 +321,7 @@ class Tetris(game.AbstractGame):
                 while time.time() - stime < self.inv_speed:
                     inp = ui.inkey(timeout=0.02)
                     if inp == "q":
-                        break
+                        return resume_hook
                     self.clear_piece(ui)
                     self.move_piece(inp)
                     self.render_piece(ui)
@@ -195,5 +329,3 @@ class Tetris(game.AbstractGame):
                     time.sleep(0.5)
                     self.reset_piece()
                     return resume_hook
-
-        return resume_hook

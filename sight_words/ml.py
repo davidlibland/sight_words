@@ -52,8 +52,12 @@ def choose_word(
     """Chooses a word based on thomson sampling"""
     # First choose the grade:
     grade = choose_grade(dataset, inv_temp=inv_grade_temp)
+
+    def clean_param(v):
+        return max(v * inv_temp, 0.1)
+
     draw_by_word = {
-        word: rng.beta(a=inv_temp * datum.failures, b=inv_temp * datum.successes)
+        word: rng.beta(a=clean_param(datum.failures), b=clean_param(datum.successes))
         for word, datum in dataset.items()
         if datum.grade == grade
     }
