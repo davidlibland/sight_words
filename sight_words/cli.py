@@ -121,11 +121,13 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy):
             phrase = f"Please spell {word}"
             if sentence:
                 phrase += f", as in: {sentence}. {word}."
-            engine.output(phrase)
 
-            io.flush_input()
-            attempt = input("spelling (or \quit): ")
-            if attempt == "\quit":
+            attempt = r"\repeat"
+            while attempt == r"\repeat":
+                engine.output(phrase)
+                io.flush_input()
+                attempt = input(r"spelling (or \quit or \repeat): ")
+            if attempt == r"\quit":
                 click.secho("Quitting...")
                 quit_ = True
             else:
