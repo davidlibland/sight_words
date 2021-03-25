@@ -4,7 +4,6 @@ import pathlib
 
 import blessed
 import click
-import pyttsx3
 
 from sight_words.games import stacking, tetris
 from sight_words import data_utils, ml, reports, data_rep, io, game
@@ -12,6 +11,8 @@ from sight_words import data_utils, ml, reports, data_rep, io, game
 
 @click.group()
 def main():
+    """The Word Practice program. Please choose spell, read, or
+    add a new student, parse a new text, or generate a report"""
     pass
 
 
@@ -31,7 +32,7 @@ def new_data_file(file_path, grade, past_grade_success_incr, text_name):
     )
     click.secho(f"Saving data file at {file_path}.")
     data_utils.save_dataset(pathlib.Path(file_path), dataset)
-    click.secho(f"Done.")
+    click.secho("Done.")
 
 
 @main.command("parse_new_text")
@@ -41,7 +42,7 @@ def new_data_file(file_path, grade, past_grade_success_incr, text_name):
 def parse_new_text(text, name, max_length):
     """Parses a new text file for sentences"""
     click.secho(f"Parsing the text {text}.")
-    dataset = data_utils.build_new_sentence_file(text, name, max_length=max_length)
+    data_utils.build_new_sentence_file(text, name, max_length=max_length)
     click.secho(f"Saved under {name}.")
 
 
@@ -85,7 +86,8 @@ def read(data_file, inv_temp, inv_grade_temp):
 @click.option("--inv_temp", type=float, default=1)
 @click.option("--inv_grade_temp", type=float, default=1)
 @click.option("--spoken/--silent", type=bool, default=True)
-def spell(data_file, inv_temp, inv_grade_temp, spoken):
+@click.option("--target_accuracy", type=float, default=0.75)
+def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy):
     """Tests spelling"""
     if spoken:
         engine = io.OutputEngine(output_type=io.OutputType.SPOKEN)
@@ -98,12 +100,21 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
     game_state = tetris.Tetris()
     ui = blessed.Terminal()
 
-    quit = False
-    while not quit:
+    # Use a jeffrey's prior:
+    session_successes = 0.5
+    session_failures = 0.5
+
+    quit_ = False
+    while not quit_:
         hook = game_state.play(ui)
         if not isinstance(hook, game.GameOver):
-            word = ml.choose_word(
-                dataset.spelling_words, inv_temp=inv_temp, inv_grade_temp=inv_grade_temp
+            word = ml.choose_word_for_target_accuracy(
+                dataset.spelling_words,
+                inv_grade_temp=inv_grade_temp,
+                inv_temp=inv_temp,
+                target_accuracy=target_accuracy,
+                session_successes=session_successes,
+                session_failures=session_failures,
             )
             sentence = text.get_sentence(word)
 
@@ -116,7 +127,7 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
             attempt = input("spelling (or \quit): ")
             if attempt == "\quit":
                 click.secho("Quitting...")
-                quit = True
+                quit_ = True
             else:
                 if attempt.lower().strip() == word.lower().strip():
                     success = 1
@@ -136,12 +147,14 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken):
                     event = game.SightWordTestEvent(
                         word, 1, game.TestQuestionResult.FAIL
                     )
+                session_successes += success
+                session_failures += failure
                 dataset = data_utils.update_dataset(
                     dataset, spelling_word=word, successes=success, failures=failure
                 )
                 game_state = hook(event)
         else:
-            quit = True
+            quit_ = True
         data_utils.save_dataset(data_file, dataset)
 
 
