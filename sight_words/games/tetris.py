@@ -120,16 +120,27 @@ class TetrisPiece:
         ).shift(x, y)
 
     @staticmethod
+    def tee(x, y):
+        """Get a tee"""
+        return TetrisPiece(
+            squares=[(0, 0), (-1, 0), (1, 0), (0, 1)], center=(0.0, 0)
+        ).shift(x, y)
+
+    @staticmethod
     def random_piece(x, y) -> "TetrisPiece":
         """Get a random piece"""
         method = random.choice(
             [
                 TetrisPiece.box,
                 TetrisPiece.line,
+                TetrisPiece.box,
+                TetrisPiece.line,
                 TetrisPiece.ell,
                 TetrisPiece.lle,
                 TetrisPiece.zag,
                 TetrisPiece.zig,
+                TetrisPiece.tee,
+                TetrisPiece.tee,
             ]
         )
         return method(x, y)
@@ -150,11 +161,12 @@ class Tetris(game.AbstractGame):
     piece: TetrisPiece = dataclasses.field(
         default_factory=lambda: TetrisPiece.random_piece(5, 0)
     )
-    inv_speed: float = 0.5
+    inv_speed: float = 1.0
 
     def adjust_rows(self, height):
         """Adjusts the state to the correct height."""
         i = 0
+        row_zap = None
         while i < len(self.rows):
             # Check if any rows are full:
             row = self.rows[i]
@@ -162,6 +174,7 @@ class Tetris(game.AbstractGame):
                 # Delete the row.
                 self.rows.pop(i)
                 self.score += self.width
+                row_zap = True
             else:
                 i += 1
         if len(self.rows) < height:
@@ -170,6 +183,7 @@ class Tetris(game.AbstractGame):
             ]
             self.rows = new_rows + self.rows
         self.rows = self.rows[-height:]
+        return row_zap
 
     def render_board(self, ui: blessed.Terminal):
         """Renders the game board"""
@@ -201,9 +215,17 @@ class Tetris(game.AbstractGame):
         """Checks if the game is over"""
         return any(self.rows[0].blocks_filled)
 
+    def render_row_zap(self, ui):
+        """Renders the game over message"""
+        print(ui.home + ui.black_on_bright_green + ui.clear, end="")
+        msg = "Row Zap!"
+        print(ui.move_xy(ui.width // 2 - 4, ui.height // 2) + msg)
+        msg = f"Score: {self.score}"
+        print(ui.move_xy((ui.width - len(msg)) // 2, ui.height // 2 + 1) + msg)
+
     def render_game_over(self, ui):
         """Renders the game over message"""
-        print(ui.home + ui.black_on_bright_cyan + ui.clear, end="")
+        print(ui.home + ui.black_on_bright_red + ui.clear, end="")
         msg = "Game Over!"
         print(ui.move_xy(ui.width // 2 - 5, ui.height // 2) + msg)
         msg = f"Score: {self.score}"
@@ -302,7 +324,7 @@ class Tetris(game.AbstractGame):
         def resume_hook(event: game.SightWordTestEvent):
             if event.result == game.TestQuestionResult.PASS:
                 return dataclasses.replace(
-                    self, score=self.score + 1, inv_speed=self.inv_speed * 0.9
+                    self, score=self.score + 1, inv_speed=self.inv_speed * 0.99
                 )
             elif event.result == game.TestQuestionResult.FAIL:
                 new_row = RowData(blocks_filled=[True] * self.width, word=event.word)
@@ -311,7 +333,10 @@ class Tetris(game.AbstractGame):
         with ui.fullscreen(), ui.cbreak(), ui.hidden_cursor():
             while True:
                 stime = time.time()
-                self.adjust_rows(ui.height - TOP_OFFSET - BOTTOM_OFFSET)
+                row_zap = self.adjust_rows(ui.height - TOP_OFFSET - BOTTOM_OFFSET)
+                if row_zap:
+                    self.render_row_zap(ui)
+                    time.sleep(1.0)
                 if self.is_game_over():
                     self.render_game_over(ui)
                     while not ui.inkey(timeout=2):
@@ -326,6 +351,10 @@ class Tetris(game.AbstractGame):
                     self.move_piece(inp)
                     self.render_piece(ui)
                 if not self.drop_piece():
+                    row_zap = self.adjust_rows(ui.height - TOP_OFFSET - BOTTOM_OFFSET)
+                    if row_zap:
+                        self.render_row_zap(ui)
+                        time.sleep(0.5)
                     time.sleep(0.5)
                     self.reset_piece()
                     return resume_hook
