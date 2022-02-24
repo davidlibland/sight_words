@@ -26,24 +26,27 @@ PRIOR_FAILURES = 0.5
 PRIOR_SUCCESSES = 0.5
 
 
-def load_sight_words():
-    """Loads the sight words from the raw data"""
-    full_path_str = pkg_resources.resource_filename(
-        "sight_words", "data/sight_words.yml"
-    )
-    full_path = pathlib.Path(full_path_str)
+def load_word_file(file_path):
+    full_path = pathlib.Path(file_path)
     with full_path.open("r") as f:
         data = yaml.load(f, Loader=yaml.SafeLoader)
     return data
 
 
-def build_new_dataset(
-    max_grade: int, past_grade_success_incr: int = 1
+def load_sight_words():
+    """Loads the sight words from the raw data"""
+    full_path_str = pkg_resources.resource_filename(
+        "sight_words", "data/sight_words.yml"
+    )
+    return load_word_file(full_path_str)
+
+
+def build_new_raw_dataset(
+    all_words: Dict[int, List[str]], max_grade: int, past_grade_success_incr: int = 1
 ) -> Dict[str, data_rep.SightWordDatum]:
     """Builds a new dataset of sight words"""
-    sight_words = load_sight_words()
     data_set = {}
-    for grade, words in sight_words.items():
+    for grade, words in all_words.items():
         if grade > max_grade:
             # Skip grades above the max-grade
             continue
@@ -55,6 +58,14 @@ def build_new_dataset(
             )
             data_set[word] = datum
     return data_set
+
+
+def build_new_dataset(
+    max_grade: int, past_grade_success_incr: int = 1
+) -> Dict[str, data_rep.SightWordDatum]:
+    """Builds a new dataset of sight words"""
+    sight_words = load_sight_words()
+    return build_new_raw_dataset(sight_words, max_grade, past_grade_success_incr)
 
 
 def save_dataset(file_path: pathlib.Path, dataset: data_rep.DataSet):

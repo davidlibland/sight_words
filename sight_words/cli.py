@@ -16,6 +16,36 @@ def main():
     pass
 
 
+DEFAULT_TEXTS = (
+    "p_and_p",
+    "boxcar_children",
+    "hardy_house_on_a_cliff",
+    "hardy_old_mill",
+    "hardy_tower_treasure",
+)
+
+
+@main.command("new_raw_data_file")
+@click.argument("file_path", type=click.Path())
+@click.argument("words", type=click.Path())
+@click.argument("grade", type=int)
+@click.option("--past_grade_success_incr", type=int, default=1)
+@click.option("--text_name", type=str, multiple=True, default=DEFAULT_TEXTS)
+def new_raw_data_file(file_path, words, grade, past_grade_success_incr, text_name):
+    """Initializes a datafile for a new student"""
+    click.secho(f"Creating new data file from {words} for grade {grade}.")
+    raw_words = data_utils.load_word_file(words)
+    words = data_utils.build_new_raw_dataset(
+        raw_words, max_grade=grade, past_grade_success_incr=past_grade_success_incr
+    )
+    dataset = data_rep.DataSet(
+        spelling_words=words, reading_words=words, text=list(text_name)
+    )
+    click.secho(f"Saving data file at {file_path}.")
+    data_utils.save_dataset(pathlib.Path(file_path), dataset)
+    click.secho("Done.")
+
+
 @main.command("new_data_file")
 @click.argument("file_path", type=click.Path())
 @click.argument("grade", type=int)
