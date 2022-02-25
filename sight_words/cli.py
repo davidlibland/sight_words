@@ -18,7 +18,7 @@ def main():
 
 DEFAULT_TEXTS = (
     "p_and_p",
-    "boxcar_children",
+    "boxcar",
     "hardy_house_on_a_cliff",
     "hardy_old_mill",
     "hardy_tower_treasure",
