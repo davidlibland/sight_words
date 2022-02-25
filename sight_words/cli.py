@@ -6,7 +6,8 @@ import blessed
 import click
 
 from sight_words.games import stacking, tetris
-from sight_words import data_utils, ml, reports, data_rep, io, game
+from sight_words import data_utils, ml, reports, data_rep, io
+from sight_words import game as game_module
 
 
 @click.group()
@@ -117,7 +118,8 @@ def read(data_file, inv_temp, inv_grade_temp):
 @click.option("--inv_grade_temp", type=float, default=1)
 @click.option("--spoken/--silent", type=bool, default=True)
 @click.option("--target_accuracy", type=float, default=0.75)
-def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy):
+@click.option("--game/--no-game", default=True)
+def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy, game):
     """Tests spelling"""
     if spoken:
         engine = io.OutputEngine(output_type=io.OutputType.SPOKEN)
@@ -127,7 +129,10 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy):
     dataset = data_utils.load_dataset(data_file)
     text = data_utils.get_indexed_sentences(*dataset.text)
 
-    game_state = tetris.Tetris()
+    game_state = None
+    hook = None
+    if game:
+        game_state = tetris.Tetris()
     ui = blessed.Terminal()
 
     # Use a jeffrey's prior:
@@ -135,9 +140,11 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy):
     session_failures = 0.5
 
     quit_ = False
+    event = None
     while not quit_:
-        hook = game_state.play(ui)
-        if not isinstance(hook, game.GameOver):
+        if game_state:
+            hook = game_state.play(ui)
+        if not isinstance(hook, game_module.GameOver):
             word = ml.choose_word_for_target_accuracy(
                 dataset.spelling_words,
                 inv_grade_temp=inv_grade_temp,
@@ -165,9 +172,10 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy):
                     success = 1
                     failure = 0
                     engine.output("Correct!")
-                    event = game.SightWordTestEvent(
-                        word, 1, game.TestQuestionResult.PASS
-                    )
+                    if game:
+                        event = game_module.SightWordTestEvent(
+                            word, 1, game_module.TestQuestionResult.PASS
+                        )
                 else:
                     success = 0
                     failure = 1
@@ -176,15 +184,17 @@ def spell(data_file, inv_temp, inv_grade_temp, spoken, target_accuracy):
                         engine.output(
                             f"Sorry! The correct spelling is: {', '.join(word)}."
                         )
-                    event = game.SightWordTestEvent(
-                        word, 1, game.TestQuestionResult.FAIL
-                    )
+                    if game:
+                        event = game_module.SightWordTestEvent(
+                            word, 1, game_module.TestQuestionResult.FAIL
+                        )
                 session_successes += success
                 session_failures += failure
                 dataset = data_utils.update_dataset(
                     dataset, spelling_word=word, successes=success, failures=failure
                 )
-                game_state = hook(event)
+                if hook and event:
+                    game_state = hook(event)
         else:
             quit_ = True
         data_utils.save_dataset(data_file, dataset)
