@@ -42,13 +42,18 @@ def load_sight_words():
 
 
 def build_new_raw_dataset(
-    all_words: Dict[int, List[str]], max_grade: int, past_grade_success_incr: int = 1
+    all_words: Dict[int, List[str]],
+    max_grade: int,
+    past_grade_success_incr: int = 1,
+    min_grade=None,
 ) -> Dict[str, data_rep.SightWordDatum]:
     """Builds a new dataset of sight words"""
     data_set = {}
     for grade, words in all_words.items():
         if grade > max_grade:
             # Skip grades above the max-grade
+            continue
+        if min_grade and grade < min_grade:
             continue
         for word in words:
             success = past_grade_success_incr * (max_grade - grade) + PRIOR_SUCCESSES

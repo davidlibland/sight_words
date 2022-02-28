@@ -1,4 +1,5 @@
 """The main sight-words entry-point."""
+import dataclasses
 import itertools
 import pathlib
 
@@ -41,6 +42,33 @@ def new_raw_data_file(file_path, words, grade, past_grade_success_incr, text_nam
     )
     dataset = data_rep.DataSet(
         spelling_words=words, reading_words=words, text=list(text_name)
+    )
+    click.secho(f"Saving data file at {file_path}.")
+    data_utils.save_dataset(pathlib.Path(file_path), dataset)
+    click.secho("Done.")
+
+
+@main.command("add_grade_to_data_file")
+@click.argument("file_path", type=click.Path())
+@click.argument("words", type=click.Path())
+@click.argument("grade", type=int)
+@click.option("--past_grade_success_incr", type=int, default=1)
+def add_grade_to_data_file(file_path, words, grade, past_grade_success_incr):
+    """Adds a grade to a datafile for a new student"""
+    click.secho(f"Creating new data file from {words} for grade {grade}.")
+    raw_words = data_utils.load_word_file(words)
+    words = data_utils.build_new_raw_dataset(
+        raw_words,
+        max_grade=grade,
+        past_grade_success_incr=past_grade_success_incr,
+        min_grade=grade,
+    )
+    data_file = pathlib.Path(file_path)
+    dataset = data_utils.load_dataset(data_file)
+    new_spelling_words = {**words, **dataset.spelling_words}
+    new_reading_words = {**words, **dataset.reading_words}
+    dataset = dataclasses.replace(
+        dataset, spelling_words=new_spelling_words, reading_words=new_reading_words
     )
     click.secho(f"Saving data file at {file_path}.")
     data_utils.save_dataset(pathlib.Path(file_path), dataset)
